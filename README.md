@@ -10,5 +10,7 @@ TODO:
 * ~~Set .dca files into memory~~
 * ~~Configure bot to be able to respond to different triggers and lookup related sound from data structure~~
 * ~~Prevent sounds from being played on top of one another (your friends will also probably try to ruin your nice things)~~
-* set up configuration structure- one with discord bot token and another w/ sound list
+* set up configuration structure- one with discord bot token ~~and another w/ sound list~~
 * write full installation instructions, including explaining .dca creation process
+* implement web service that will take in a .wav and trigger, automatically convert it to dca, and add it to app's list of sounds
+* clean up some elements of code, learn more about scoping and how to set discordgo object to be available as a singleton
