@@ -2,23 +2,17 @@ package main
 
 import (
 	"encoding/binary"
-	"flag"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"time"
+	"sort"
 
 	"encoding/csv"
 	"github.com/bwmarrin/discordgo"
 )
-
-func init() {
-	flag.StringVar(&token, "t", "", "Bot Token")
-	flag.Parse()
-}
-
-var token string
 
 var (
 	// discordgo session
@@ -37,7 +31,15 @@ var (
 
 	// Owner
 	OWNER string
+
+	// Bot token
+	token string
 )
+
+// Right now, configuration only set to take in a bot token. but we can add in more things in the future.
+type Configuration struct {
+	Token string
+}
 
 // Play represents an individual use of the !airhorn command
 type Play struct {
@@ -64,13 +66,25 @@ type Sound struct {
 
 func main() {
 
-	// Instead, let's pull a token from a configuration file.
-	if token == "" {
-		fmt.Println("No token provided. Please run: buster -t <bot token>")
+	// first lets verify that we've got a token
+	confFile, err := os.Open("config/conf.json")
+	if err != nil {
+		panic(err)
+	}
+	decoder := json.NewDecoder(confFile)
+	configuration := Configuration{}
+	err = decoder.Decode(&configuration)
+	if err != nil {
+		panic(err)
+	}
+	token = configuration.Token
+	if strings.Contains(token, "ADD YOUR DISCORD BOT TOKEN HERE!") {
+		fmt.Println("Please set a Discord bot token in config/conf.json.")
 		return
 	}
+	fmt.Println("Retrieved token: " + token)
 
-	// cribbed from goscv example
+	// lets load up our sounds
 	soundsFile, err := os.OpenFile("config/sounds.csv", os.O_RDWR|os.O_CREATE, os.ModePerm) // should figure out what these os objects are
 	if err != nil {
 		panic(err)
@@ -133,7 +147,7 @@ func main() {
 		fmt.Println("Error opening Discord session: ", err)
 	}
 
-	fmt.Println("Bobby is now running.  Press CTRL-C to exit.")
+	fmt.Println("Discord Soundboard is now running.  Press CTRL-C to exit.")
 	// Simple way to keep program running until CTRL-C is pressed.
 	<-make(chan struct{})
 	return
@@ -141,7 +155,7 @@ func main() {
 
 func ready(s *discordgo.Session, event *discordgo.Ready) {
 	// Set the playing status.
-	_ = s.UpdateStatus(0, "!bobby")
+	_ = s.UpdateStatus(0, "!commands")
 }
 
 // This function will be called (due to AddHandler above) every time a new
@@ -153,6 +167,21 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		c, err := s.State.Channel(m.ChannelID)
 		if err != nil {
 			// Could not find channel.
+			return
+		}
+
+		// we need to have the channel available to send a message, so do this second.
+		if command == "list" || command == "commands" {
+			// special case for list command.
+			// this code actually sucks but using the reflect stdlib means i have to do some bizarre casting
+			keys := make([]string, len(soundMap))
+			i := 0
+			for k := range soundMap {
+			    keys[i] = k
+			    i++
+			}
+			sort.Strings(keys)
+			_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+strings.Join(keys, ", ")+"```")
 			return
 		}
 
@@ -187,7 +216,7 @@ func guildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 
 	for _, channel := range event.Guild.Channels {
 		if channel.ID == event.Guild.ID {
-			_, _ = s.ChannelMessageSend(channel.ID, "Bobby Moynihan is ready! Type !bobby while in a voice channel to play a sound.")
+			_, _ = s.ChannelMessageSend(channel.ID, "Discord Soundboard is ready! Type a command while in a voice channel to play a sound.")
 			return
 		}
 	}
@@ -276,7 +305,7 @@ func createPlay(user *discordgo.User, channel *discordgo.Channel, guild *discord
 
 // Play a sound
 func playSound(play *Play, vc *discordgo.VoiceConnection, session *discordgo.Session) (err error) {
-	fmt.Println("playing sound"+play.Sound.Name)
+	fmt.Println("playing sound "+play.Sound.Name)
 
 	if vc == nil {
 		vc, err = session.ChannelVoiceJoin(play.GuildID, play.ChannelID, false, false)
