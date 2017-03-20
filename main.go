@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
-	"sort"
 
 	"encoding/csv"
 	"github.com/bwmarrin/discordgo"
@@ -48,7 +52,6 @@ type Play struct {
 	UserID    string
 	Sound     *Sound
 }
-
 
 // Sound type cribbed from airhornbot.
 type Sound struct {
@@ -93,8 +96,8 @@ func main() {
 
 	reader := csv.NewReader(soundsFile)
 	//Configure reader options Ref http://golang.org/src/pkg/encoding/csv/reader.go?s=#L81
-	reader.Comma = ','          //field delimiter
-	reader.Comment = '#'        //Comment character
+	reader.Comma = ','         //field delimiter
+	reader.Comment = '#'       //Comment character
 	reader.FieldsPerRecord = 2 //Number of records per record. Set to Negative value for variable
 	reader.TrimLeadingSpace = true
 
@@ -110,9 +113,9 @@ func main() {
 			continue
 		}
 		// record is array of strings Ref http://golang.org/src/pkg/encoding/csv/reader.go?s=#L134
-			// Create the play
+		// Create the play
 		sound := &Sound{
-			Name:   record[0],
+			Name:    record[0],
 			Command: record[1],
 		}
 		sounds = append(sounds, sound)
@@ -147,6 +150,9 @@ func main() {
 		fmt.Println("Error opening Discord session: ", err)
 	}
 
+	// Open our Http upload handler
+	http.ListenAndServe(":8080", http.HandlerFunc(handleUpload))
+
 	fmt.Println("Discord Soundboard is now running.  Press CTRL-C to exit.")
 	// Simple way to keep program running until CTRL-C is pressed.
 	<-make(chan struct{})
@@ -177,11 +183,27 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			keys := make([]string, len(soundMap))
 			i := 0
 			for k := range soundMap {
-			    keys[i] = k
-			    i++
+				keys[i] = k
+				i++
 			}
 			sort.Strings(keys)
-			_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+strings.Join(keys, ", ")+"```")
+			// discord has a 2000 character limit on message length. we'll need to break up our list if the length gets too long
+			commandList := strings.Join(keys, ", ")
+			if len(commandList) > 1900 { //lowball for safety
+				keyIndex := 0
+				for keyIndex < len(keys) {
+					outputString := ""
+					for len(outputString) < 1900 && keyIndex < len(keys) {
+						outputString = outputString + keys[keyIndex] + ", "
+						keyIndex++
+					}
+					outputString = outputString[:len(outputString)-2]                       // remove last chars
+					_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+outputString+"```") // short enough, so we're fine.
+				}
+
+			} else {
+				_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+strings.Join(keys, ", ")+"```") // short enough, so we're fine.
+			}
 			return
 		}
 
@@ -194,13 +216,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		// get audio channel to play in
 		ac := getCurrentVoiceChannel(m.Author, g, s)
-			if ac == nil {
-				fmt.Println("Failed to find channel to play sound in")
-				return
+		if ac == nil {
+			fmt.Println("Failed to find channel to play sound in")
+			return
 		}
 
 		i, ok := soundMap[command] // look for command in our soundMap
-		if ok { // we found it, so lets queue the sound
+		if ok {                    // we found it, so lets queue the sound
 			go enqueuePlay(m.Author, ac, g, i, s)
 		}
 		return
@@ -216,7 +238,6 @@ func guildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 
 	for _, channel := range event.Guild.Channels {
 		if channel.ID == event.Guild.ID {
-			_, _ = s.ChannelMessageSend(channel.ID, "Discord Soundboard is ready! Type a command while in a voice channel to play a sound.")
 			return
 		}
 	}
@@ -228,7 +249,7 @@ func guildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 // https://github.com/nstafie/dca-rs
 // eg: dca-rs --raw -i <input wav file> > <output file>
 func (s *Sound) Load() error {
-	path := "sounds/"+s.Name
+	path := "sounds/" + s.Name
 
 	file, err := os.Open(path)
 
@@ -249,7 +270,7 @@ func (s *Sound) Load() error {
 		}
 
 		if err != nil {
-			fmt.Println("error reading from dca file :", err)
+			fmt.Println("error reading from dca file1 :", err)
 			return err
 		}
 
@@ -259,7 +280,7 @@ func (s *Sound) Load() error {
 
 		// Should not be any end of file errors
 		if err != nil {
-			fmt.Println("error reading from dca file :", err)
+			fmt.Println("error reading from dca file2 :", err)
 			return err
 		}
 
@@ -305,13 +326,14 @@ func createPlay(user *discordgo.User, channel *discordgo.Channel, guild *discord
 
 // Play a sound
 func playSound(play *Play, vc *discordgo.VoiceConnection, session *discordgo.Session) (err error) {
-	fmt.Println("playing sound "+play.Sound.Name)
+	fmt.Println("playing sound " + play.Sound.Name)
 
 	if vc == nil {
 		vc, err = session.ChannelVoiceJoin(play.GuildID, play.ChannelID, false, false)
 		// vc.Receive = false
 		if err != nil {
 			fmt.Println("Failed to play sound")
+			fmt.Println(err)
 		}
 	}
 
@@ -360,4 +382,81 @@ func getCurrentVoiceChannel(user *discordgo.User, guild *discordgo.Guild, sessio
 		}
 	}
 	return nil
+}
+
+func handleUpload(w http.ResponseWriter, r *http.Request) {
+	//read file from request and save to disk
+	file, header, err := r.FormFile("file")
+
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return
+	}
+
+	defer file.Close()
+
+	out, err := os.Create("sounds/" + header.Filename)
+	if err != nil {
+		fmt.Fprintf(w, "Failed to open the file for writing")
+		return
+	}
+
+	defer out.Close()
+	_, err = io.Copy(out, file)
+	if err != nil {
+		fmt.Fprintln(w, err)
+	}
+
+	//create dca filename
+	dcaFilename := strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename)) + ".dca"
+
+	dcaOut, err := os.Create("sounds/" + dcaFilename)
+	if err != nil {
+		panic(err)
+	}
+	//    defer dcaOut.Close()
+
+	// convert file to .dca
+	cmd := exec.Command("dca-rs", "-i", "sounds/"+header.Filename, "--raw")
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		panic(err)
+	}
+
+	writer := bufio.NewWriter(dcaOut)
+	//defer writer.Flush()
+
+	err = cmd.Start()
+	if err != nil {
+		panic(err)
+	}
+
+	io.Copy(writer, stdoutPipe)
+	cmd.Wait()
+
+	fmt.Println("No errors from command")
+	writer.Flush()
+	dcaOut.Close()
+
+	// that was obnoxious. now let's get our command, add the sound to the map as well as our config file.
+	sound := &Sound{
+		Name:    dcaFilename,
+		Command: r.FormValue("command"),
+	}
+
+	sound.Load()
+	soundMap[sound.Command] = sound
+	fmt.Println("Loaded filename", sound.Name, "loaded command", sound.Command)
+
+	f, err := os.OpenFile("config/sounds.csv", os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	defer f.Close()
+
+	if _, err = f.WriteString("\n" + dcaFilename + "," + r.FormValue("command")); err != nil {
+		panic(err)
+	}
 }
