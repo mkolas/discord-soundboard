@@ -38,7 +38,7 @@ In `discord-soundboard/config/config.json`, replace the Token value from the exi
 
 ### Run!
 
-The bot can then be run with `go run main.go` from the `$GOPATH/src/github.com/mkolas/discord-soundboard` directory. More preferably, you can run `go install` which will create a `discord-soundboard` execuable in `$GOPATH/bin`. You'll have to copy the `config` and `sounds` directories over to `$GOPATH.bin`, but running from the `bin` directory will allow you to keep an installed binary away from any code you may choose to modify. 
+The bot can then be run with `go run main.go` from the `$GOPATH/src/github.com/mkolas/discord-soundboard` directory. More preferably, you can run `go install` which will create a `discord-soundboard` execuable in `$GOPATH/bin`. You'll have to copy the `config` and `sounds` directories over to `$GOPATH/bin`, but running from the `bin` directory will allow you to keep an installed binary away from any code you may choose to modify. 
 
 ### Commands
 
