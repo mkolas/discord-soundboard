@@ -49,7 +49,7 @@ Typing `!commands` in your Discord chat should cause the Soundboard to output th
 Sounds can be added to the Soundboard in one of two ways:
 
 1. Using [dca-rs](https://github.com/nstafie/dca-rs), you can generate .dca files and then add them to `config/sounds.csv`. Each row should identify the location of the sound (from `sounds/`) and the command (without `!` prefix) used to play it. Using `dca-rs`, the command to generate a sound should be `./dca-rs -i <input wav file> --raw > <output file>`. Make sure that you don't forget the `--raw` flag!
-2. In the web directory, I have a simple HTML form that you can shove into a served web directory that will make a simple call to an HTTP endpoint set up by the bot. This process will automagically generate a .dca file from a .wav (or .mp3, usually) and add it to the list of available sounds. Just make sure that `dca-rs` and `ffmpeg` are available on your `PATH`, otherwise this might not work. In addition, this service is far from battle tested and probably insecure as heck. Use with caution. If you'd to make this available for others to use, make sure to point the form action to the server hosting the bot and form.
+2. Using the supplied web page and service, sounds can be added by browsing to `localhost:8080/dsb/upload.html` and submitting the form. Just make sure that `dca-rs` and `ffmpeg` are available on your `PATH`, otherwise this might not work. This is not completely battled tested right now, but should work for simple sound management.
 
 
 ### Questions, Comments, Concerns?

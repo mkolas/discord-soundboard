@@ -150,8 +150,11 @@ func main() {
 		fmt.Println("Error opening Discord session: ", err)
 	}
 
-	// Open our Http upload handler
-	http.ListenAndServe(":8080", http.HandlerFunc(handleUpload))
+	http.Handle("/dsb/", http.StripPrefix("/dsb/", http.FileServer(http.Dir("web"))))
+	http.Handle("/create", http.HandlerFunc(handleUpload))
+
+	// we _must_ listen and serve AFTER declaring our handlers.
+	http.ListenAndServe(":8080", nil)
 
 	fmt.Println("Discord Soundboard is now running.  Press CTRL-C to exit.")
 	// Simple way to keep program running until CTRL-C is pressed.
