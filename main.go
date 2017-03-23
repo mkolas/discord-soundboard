@@ -224,6 +224,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		i, ok := soundMap[command] // look for command in our soundMap
 		if ok {                    // we found it, so lets queue the sound
 			go enqueuePlay(m.Author, ac, g, i, s)
+			go s.ChannelMessageDelete(m.ChannelID, m.ID) //clean up the command afterwards
 		}
 		return
 	}
@@ -332,8 +333,10 @@ func playSound(play *Play, vc *discordgo.VoiceConnection, session *discordgo.Ses
 		vc, err = session.ChannelVoiceJoin(play.GuildID, play.ChannelID, false, false)
 		// vc.Receive = false
 		if err != nil {
-			fmt.Println("Failed to play sound")
-			fmt.Println(err)
+			fmt.Println("Failed to retrieve voice connection. Close and retry.")
+			// this occurs when the voice connection fails to close. let's close manually?
+			vc.Close() // close manually
+			vc, _ = session.ChannelVoiceJoin(play.GuildID, play.ChannelID, false, false)
 		}
 	}
 
