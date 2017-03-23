@@ -10,7 +10,8 @@ TODO:
 * Rework persistence mechanism from a flat file to something like redis. If the primary interace for adding sounds will be through HTTP, then a CSV isn't the best solution
 * Track stats on sound usage (should be easy with redis)
 * Improve process of inviting bot to server (how does Discord Music Bot Work?)
-* Make upload form all pretty (hiring css god- no pay, for exposure)
+* Validate input on web form
+* Implement sound management via web page
 
 ## Installation Instructions
 
@@ -51,7 +52,7 @@ Typing `!commands` in your Discord chat should cause the Soundboard to output th
 Sounds can be added to the Soundboard in one of two ways:
 
 1. Using [dca-rs](https://github.com/nstafie/dca-rs), you can generate .dca files and then add them to `config/sounds.csv`. Each row should identify the location of the sound (from `sounds/`) and the command (without `!` prefix) used to play it. Using `dca-rs`, the command to generate a sound should be `./dca-rs -i <input wav file> --raw > <output file>`. Make sure that you don't forget the `--raw` flag!
-2. Using the supplied web page and service, sounds can be added by browsing to `localhost:8080/dsb/upload.html` and submitting the form. Just make sure that `dca-rs` and `ffmpeg` are available on your `PATH`, otherwise this might not work. This is not completely battled tested right now, but should work for simple sound management.
+2. Using the supplied web page and service, sounds can be added by browsing to `localhost:8080/dsb/upload.html` and submitting the form. Just make sure that `dca-rs` and `ffmpeg` are available on your `PATH`, otherwise this might not work. This is not completely battle tested right now, but should work for simple sound management.
 
 
 ### Questions, Comments, Concerns?
