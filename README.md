@@ -9,8 +9,8 @@ TODO:
 * Work on my Golang finesse- learn more about scoping and how to set discordgo object to be available as a singleton object
 * Rework persistence mechanism from a flat file to something like redis. If the primary interace for adding sounds will be through HTTP, then a CSV isn't the best solution
 * Track stats on sound usage (should be easy with redis)
-* Serve HTML form from within Go- don't just have it tossed onto an apache2 /var/www
 * Improve process of inviting bot to server (how does Discord Music Bot Work?)
+* Make upload form all pretty (hiring css god- no pay, for exposure)
 
 ## Installation Instructions
 
