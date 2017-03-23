@@ -38,11 +38,15 @@ var (
 
 	// Bot token
 	token string
+
+	// Status message
+	status string
 )
 
 // Right now, configuration only set to take in a bot token. but we can add in more things in the future.
 type Configuration struct {
-	Token string
+	Token  string
+	Status string
 }
 
 // Play represents an individual use of the !airhorn command
@@ -81,6 +85,7 @@ func main() {
 		panic(err)
 	}
 	token = configuration.Token
+	status = configuration.Status
 	if strings.Contains(token, "ADD YOUR DISCORD BOT TOKEN HERE!") {
 		fmt.Println("Please set a Discord bot token in config/conf.json.")
 		return
@@ -164,7 +169,7 @@ func main() {
 
 func ready(s *discordgo.Session, event *discordgo.Ready) {
 	// Set the playing status.
-	_ = s.UpdateStatus(0, "!commands")
+	_ = s.UpdateStatus(0, status) // set status message defined in configuration
 }
 
 // This function will be called (due to AddHandler above) every time a new

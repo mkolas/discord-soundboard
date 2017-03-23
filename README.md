@@ -36,6 +36,8 @@ Once you have Go installed and ready to "go" (:wink:), pull down this project wi
 
 In `discord-soundboard/config/config.json`, replace the Token value from the existing dummy string with the bot token provided by the Discord My Apps page.
 
+You can also set a Status value, which will set the default status of the bot on Discord's member list. This is useful if you want to point your community members to the URL of your upload form, for example.
+
 ### Run!
 
 The bot can then be run with `go run main.go` from the `$GOPATH/src/github.com/mkolas/discord-soundboard` directory. More preferably, you can run `go install` which will create a `discord-soundboard` execuable in `$GOPATH/bin`. You'll have to copy the `config` and `sounds` directories over to `$GOPATH/bin`, but running from the `bin` directory will allow you to keep an installed binary away from any code you may choose to modify. 
