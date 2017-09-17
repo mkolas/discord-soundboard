@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"math/rand"
+    	"html/template"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +33,7 @@ var (
 
 	// Sound encoding settings
 	BITRATE        = 128
-	MAX_QUEUE_SIZE = 6
+	MAX_QUEUE_SIZE = 128
 
 	// Owner
 	OWNER string
@@ -72,6 +74,9 @@ type Sound struct {
 }
 
 func main() {
+
+	// init rand
+	rand.Seed(time.Now().Unix())
 
 	// first lets verify that we've got a token
 	confFile, err := os.Open("config/conf.json")
@@ -157,6 +162,9 @@ func main() {
 
 	http.Handle("/dsb/", http.StripPrefix("/dsb/", http.FileServer(http.Dir("web"))))
 	http.Handle("/create", http.HandlerFunc(handleUpload))
+	http.Handle("/get", http.HandlerFunc(handleGet))
+
+
 
 	// we _must_ listen and serve AFTER declaring our handlers.
 	http.ListenAndServe(":8080", nil)
@@ -227,6 +235,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if ac == nil {
 			fmt.Println("Failed to find channel to play sound in")
 			return
+		}
+
+		if command == "random" {
+			keys := make([]string, 0, len(soundMap))
+			for k := range soundMap {
+				keys = append(keys, k)
+			}
+			command = keys[rand.Intn(len(keys))]
 		}
 
 		i, ok := soundMap[command] // look for command in our soundMap
@@ -394,6 +410,15 @@ func getCurrentVoiceChannel(user *discordgo.User, guild *discordgo.Guild, sessio
 	}
 	return nil
 }
+
+func handleGet(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("web/templates/get.html")
+	err := t.Execute(w, soundMap)
+	if err != nil {
+		panic(err)
+	}
+}
+
 
 func handleUpload(w http.ResponseWriter, r *http.Request) {
 	//read file from request and save to disk
