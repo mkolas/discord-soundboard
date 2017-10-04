@@ -5,10 +5,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
-	"net/http"
 	"math/rand"
-    	"html/template"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -163,8 +163,6 @@ func main() {
 	http.Handle("/dsb/", http.StripPrefix("/dsb/", http.FileServer(http.Dir("web"))))
 	http.Handle("/create", http.HandlerFunc(handleUpload))
 	http.Handle("/get", http.HandlerFunc(handleGet))
-
-
 
 	// we _must_ listen and serve AFTER declaring our handlers.
 	http.ListenAndServe(":8080", nil)
@@ -418,7 +416,6 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 }
-
 
 func handleUpload(w http.ResponseWriter, r *http.Request) {
 	//read file from request and save to disk
