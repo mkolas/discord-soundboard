@@ -181,72 +181,74 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the autenticated bot has access to.
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if strings.HasPrefix(m.Content, "!") { // we can make the prefix configurable but for right now always look for !
-		command := m.Content[1:] //substring starting at index 1
-
-		c, err := s.State.Channel(m.ChannelID)
-		if err != nil {
-			// Could not find channel.
-			return
-		}
-
-		// we need to have the channel available to send a message, so do this second.
-		if command == "list" || command == "commands" {
-			// special case for list command.
-			// this code actually sucks but using the reflect stdlib means i have to do some bizarre casting
-			keys := make([]string, len(soundMap))
-			i := 0
-			for k := range soundMap {
-				keys[i] = k
-				i++
+	var message = m.Content
+	if strings.HasPrefix(message, "!") { // we can make the prefix configurable but for right now always look for !
+		for _, command := range strings.Split(message[1:], "!") {
+			command := strings.TrimSpace(command)
+			c, err := s.State.Channel(m.ChannelID)
+			if err != nil {
+				// Could not find channel.
+				return
 			}
-			sort.Strings(keys)
-			// discord has a 2000 character limit on message length. we'll need to break up our list if the length gets too long
-			commandList := strings.Join(keys, ", ")
-			if len(commandList) > 1900 { //lowball for safety
-				keyIndex := 0
-				for keyIndex < len(keys) {
-					outputString := ""
-					for len(outputString) < 1900 && keyIndex < len(keys) {
-						outputString = outputString + keys[keyIndex] + ", "
-						keyIndex++
-					}
-					outputString = outputString[:len(outputString)-2]                       // remove last chars
-					_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+outputString+"```") // short enough, so we're fine.
+
+			// we need to have the channel available to send a message, so do this second.
+			if command == "list" || command == "commands" {
+				// special case for list command.
+				// this code actually sucks but using the reflect stdlib means i have to do some bizarre casting
+				keys := make([]string, len(soundMap))
+				i := 0
+				for k := range soundMap {
+					keys[i] = k
+					i++
 				}
+				sort.Strings(keys)
+				// discord has a 2000 character limit on message length. we'll need to break up our list if the length gets too long
+				commandList := strings.Join(keys, ", ")
+				if len(commandList) > 1900 { //lowball for safety
+					keyIndex := 0
+					for keyIndex < len(keys) {
+						outputString := ""
+						for len(outputString) < 1900 && keyIndex < len(keys) {
+							outputString = outputString + keys[keyIndex] + ", "
+							keyIndex++
+						}
+						outputString = outputString[:len(outputString)-2]                       // remove last chars
+						_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+outputString+"```") // short enough, so we're fine.
+					}
 
-			} else {
-				_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+strings.Join(keys, ", ")+"```") // short enough, so we're fine.
+				} else {
+					_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+strings.Join(keys, ", ")+"```") // short enough, so we're fine.
+				}
+				return
 			}
-			return
-		}
 
-		// Find the guild for that channel.
-		g, err := s.State.Guild(c.GuildID)
-		if err != nil {
-			// Could not find guild.
-			return
-		}
-
-		// get audio channel to play in
-		ac := getCurrentVoiceChannel(m.Author, g, s)
-		if ac == nil {
-			fmt.Println("Failed to find channel to play sound in")
-			return
-		}
-
-		if command == "random" {
-			keys := make([]string, 0, len(soundMap))
-			for k := range soundMap {
-				keys = append(keys, k)
+			// Find the guild for that channel.
+			g, err := s.State.Guild(c.GuildID)
+			if err != nil {
+				// Could not find guild.
+				return
 			}
-			command = keys[rand.Intn(len(keys))]
-		}
 
-		i, ok := soundMap[command] // look for command in our soundMap
-		if ok {                    // we found it, so lets queue the sound
-			go enqueuePlay(m.Author, ac, g, i, s)
-			go s.ChannelMessageDelete(m.ChannelID, m.ID) //clean up the command afterwards
+			// get audio channel to play in
+			ac := getCurrentVoiceChannel(m.Author, g, s)
+			if ac == nil {
+				fmt.Println("Failed to find channel to play sound in")
+				return
+			}
+
+			if command == "random" {
+				keys := make([]string, 0, len(soundMap))
+				for k := range soundMap {
+					keys = append(keys, k)
+				}
+				command = keys[rand.Intn(len(keys))]
+			}
+
+			i, ok := soundMap[command] // look for command in our soundMap
+			if ok {                    // we found it, so lets queue the sound
+				go enqueuePlay(m.Author, ac, g, i, s)
+				go s.ChannelMessageDelete(m.ChannelID, m.ID) //clean up the command afterwards
+			}
 		}
 		return
 	}
