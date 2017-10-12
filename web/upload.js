@@ -1,55 +1,135 @@
 function makeFloaters() {
     // IE 11 doesn't render this correctly, but maybe I'll fix it later.
-    var emojis = ['🤔','️🤔','🤔','🤔','🤔','🤔','🤔','🤔','🤔','🤔',
+    let emojis = ['🤔','️🤔','🤔','🤔','🤔','🤔','🤔','🤔','🤔','🤔',
                   '🤔','🤔','🤔','🤔','🤔','🤔','🤔','🤔','🤔','🤔'];
-    var template = '<span class="floater">%e</span>';
 
     // Fewer emojis on smaller screens.
-    if ($(window).width() < 1000) {
-      emojis.length = emojis.length/2;
+    if (screen.width < 1000) {
+        emojis.length = emojis.length/2;
     }
 
+    let floaters = [];
     emojis.forEach(function(e) {
-      $('#emoji-background').append(template.replace('%e', e));
+        let child = document.createElement('span');
+        child.classList.add('floater');
+        child.innerHTML = e;
+        floaters.push(child);
+        document.getElementById('emoji-background').appendChild(child);
     });
 
-    var i=1;
-    var animCss = '<style>\n';
-    $('#emoji-background .floater').each(function() {
-      var topStart = Math.round(Math.random() * 100);
-      var topEnd = Math.round(Math.random() * 100);
-      var duration = Math.round(Math.random() * 20 + 8);
-      var delay = Math.round(Math.random() * 20);
-      var rotationStart = Math.round(Math.random() * 360);
-      var rotationEnd = Math.round(Math.random() * 360 + 360);
-      var leftStrings = ['left: -120px;\n', 'left: calc(100vw + 120px);\n'];
-      if (Math.random() > 0.5) {
-        leftStrings.unshift(leftStrings.pop());
-      }
+    let i=1;
+    let animCss = '';
+    floaters.forEach(function(floater) {
+        let topStart = Math.round(Math.random() * 100);
+        let topEnd = Math.round(Math.random() * 100);
+        let duration = Math.round(Math.random() * 20 + 8);
+        let delay = Math.round(Math.random() * 20);
+        let rotationStart = Math.round(Math.random() * 360);
+        let rotationEnd = Math.round(Math.random() * 360 + 360);
+        let leftStrings = ['left: -120px;\n', 'left: calc(100vw + 120px);\n'];
+        if (Math.random() > 0.5) {
+            leftStrings.unshift(leftStrings.pop());
+        }
 
-      $(this).addClass('floater-' + i);
-      animCss += '@keyframes emoji-float-' + i + ' ' +
-          '{ \n' +
-          '  from {\n' +
-          '    ' + leftStrings.pop() +
-          '    top: ' + topStart + 'vh;\n' +
-          '    transform: rotateZ(' + rotationStart + 'deg);\n' +
-          '  }\n' +
-          '  to {\n' +
-          '    ' + leftStrings.pop() +
-          '    top: ' + topEnd + 'vh;\n' +
-          '    transform: rotateZ(' + rotationEnd + 'deg);\n' +
-          '  }\n' +
-          '}\n';
+        floater.classList.add('floater-' + i);
+        animCss += '@keyframes emoji-float-' + i + ' ' +
+            '{ \n' +
+            '  from {\n' +
+            '    ' + leftStrings.pop() +
+            '    top: ' + topStart + 'vh;\n' +
+            '    transform: rotateZ(' + rotationStart + 'deg);\n' +
+            '  }\n' +
+            '  to {\n' +
+            '    ' + leftStrings.pop() +
+            '    top: ' + topEnd + 'vh;\n' +
+            '    transform: rotateZ(' + rotationEnd + 'deg);\n' +
+            '  }\n' +
+            '}\n';
 
-      animCss += '#emoji-background .floater-' + i + ' ' +
-          '{ \n' +
-          '  animation: emoji-float-' + i + ' ' + 
-          duration + 's ' +
-          delay + 's linear infinite alternate; \n' +
-          '}\n';
-      i++;
+        animCss += '#emoji-background .floater-' + i + ' ' +
+            '{ \n' +
+            '  animation: emoji-float-' + i + ' ' +
+            duration + 's ' +
+            delay + 's linear infinite alternate; \n' +
+            '}\n';
+        i++;
     });
-    animCss += '</style>';
-    $(document.body).append(animCss);
-  }
+    let styleElement = document.createElement('style');
+    styleElement.innerHTML = animCss;
+    document.body.appendChild(styleElement);
+}
+
+let contentHolder = document.getElementById('content-holder');
+let uploadContent = document.getElementById('upload-content');
+let listContent = document.getElementById('list-content');
+let soundList = document.getElementById('soundList');
+let uploadButton = document.getElementById('upload-button');
+let manageButton = document.getElementById('manage-button');
+let newAlias = document.getElementById('new-alias');
+let aliasList = document.getElementById('alias-list');
+
+function setUpload() {
+    uploadContent.style.display = 'block';
+    listContent.style.display = 'none';
+    getAliases()
+}
+
+function setList() {
+    //Retrieve and load list of sounds, then show
+    soundList.innerHTML = '';
+
+    let request = new XMLHttpRequest();
+    request.open('GET', '/get');
+    request.send();
+    request.onload = function (event) {
+        soundList.innerHTML = this.response;
+        uploadContent.style.display = 'none';
+        listContent.style.display = 'block';
+    }
+}
+
+uploadButton.addEventListener('click', setUpload, false);
+manageButton.addEventListener('click', setList, false);
+
+function getAliases() {
+    let request = new XMLHttpRequest();
+    request.open('GET', '/aliases');
+    request.send();
+    request.onload = function() {
+        aliasList.innerHTML = '<option></option>'+this.response;
+    }
+}
+
+function deleteSound(element) {
+    let id = element.id.substr(0, element.id.indexOf('-'));
+    let request = new XMLHttpRequest();
+    request.open('POST', '/delete');
+    let formData = new FormData();
+    formData.append("delete", id);
+    request.send(formData);
+    request.onload = function() {
+        setList()
+    }
+}
+
+function createAlias() {
+    let request = new XMLHttpRequest();
+
+    let formData = new FormData();
+    formData.append("newAlias", newAlias.value);
+    formData.append("sound", aliasList.value);
+    request.open('POST', '/createAlias');
+    request.send(formData);
+    request.onload = function() {
+        aliasList.value = ""
+    }
+}
+
+
+
+contentHolder.appendChild(uploadContent);
+contentHolder.appendChild(listContent);
+
+makeFloaters();
+setUpload();
+getAliases();

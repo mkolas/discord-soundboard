@@ -21,3 +21,8 @@
 	left: -120px;
 	position: absolute;
 }
+
+.button-delete {
+    background-color: #dd1144;
+    border-color: #000000;
+}

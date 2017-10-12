@@ -23,15 +23,7 @@
   <link rel="stylesheet" href="css/skeleton.css">
   <link rel="stylesheet" href="css/upload.css">
 
-  <!-- JS
-  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
-  <script src="upload.js"></script>
-  <script>
-  	$( document ).ready(function() {
-    	makeFloaters();
-	});
-</script>
+
 
   <!-- Favicon
   –––––––––––––––––––––––––––––––––––––––––––––––––– -->
@@ -41,32 +33,78 @@
 <body>
    <div id="emoji-background"></div>
 
-  <!-- Primary Page Layout
+
+   <!-- Navigation Buttons
   –––––––––––––––––––––––––––––––––––––––––––––––––– -->
-  <div class="container">
-    <div class="row">
-      <div class="one-half column" style="margin-top: 25%">
-        <h4>Upload</h4>
-		<form action="/create"
-		enctype="multipart/form-data" method="post">
-			<p>
-			Command name (no prefixes!):<br>
-			<input type="text" name="command" size="30">
-			</p>
-			<p>
-			Select file (.wav and .mp3 preferred):<br>
-			<input type="file" name="file" size="40">
-			</p>
-			<div>
-			<input type="submit" value="Send">
-			</div>
-		</form>
-      </div>
-    </div>
-  </div>
+   <div id="header-container" class="container">
+       <div class="row">
+           <div class="column" style="margin-top: 5%">
+               <a id="upload-button" class="button" href="#">Upload</a>
+               <a id="manage-button" class="button" href="#">Manage</a>
+           </div>
+       </div>
+   </div>
 
+   <!-- Primary Content Holder
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+   <div class="container">
+       <div class="row">
+           <div style="margin-top: 25%">
+               <div id="content-holder"></div>
+           </div>
+       </div>
+   </div>
 
-<!-- End Document
+   <!-- Upload Form
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+
+   <div id="upload-content" class="content">
+           <div class="four columns">
+               <h4>Upload New</h4>
+               <form action="/create"
+                     enctype="multipart/form-data" method="post">
+                       <label for="command">Command name (no prefixes!):</label>
+                       <input type="text" name="command" id="command" placeholder="no !, please">
+                   <p>
+                       <label for="file">Select file (.wav and .mp3 preferred):</label>
+                       <input type="file" id="file" name="file">
+                   </p>
+                   <div>
+                       <input class="button-primary" type="submit" value="Submit">
+                   </div>
+               </form>
+           </div>
+           <div class="eight columns">
+               <h4>Create Alias</h4>
+               <div class="row">
+                   <div class="four columns">
+                       <label for="new-alias">Alias</label>
+                       <input class="u-full-width" type="text" placeholder="seriously no !" id="new-alias">
+                   </div>
+                   <div class="four columns">
+                       <label for="alias-list">Which Sound</label>
+                       <select class="u-full-width" id="alias-list">
+                       </select>
+                   </div>
+               </div>
+
+               <a id="createAlias" style="text-align:center" onclick="createAlias()" class="button button-primary">Create</a>
+           </div>
+       </div>
+   </div>
+
+   <!-- List View
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+   <div id="list-content" class="content">
+       <h4>List</h4>
+       <div id="soundList"></div>
+   </div>
+
+   <!-- JS
+   –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+   <script src="upload.js"></script>
+
+   <!-- End Document
   –––––––––––––––––––––––––––––––––––––––––––––––––– -->
 </body>
 </html>

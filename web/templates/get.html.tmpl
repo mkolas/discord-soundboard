@@ -1,0 +1,3 @@
+{{ range $key, $value := . }}
+<div id="{{$key}}">{{$key}}<a id="{{$key}}-delete" style="text-align:center" onclick="deleteSound(this)" class="button button-delete">DELETE</a></div></br>
+{{ end }}

@@ -18,6 +18,8 @@ import (
 
 	"encoding/csv"
 	"github.com/bwmarrin/discordgo"
+	"io/ioutil"
+	"log"
 )
 
 var (
@@ -159,14 +161,15 @@ func main() {
 	if err != nil {
 		fmt.Println("Error opening Discord session: ", err)
 	}
-
 	http.Handle("/dsb/", http.StripPrefix("/dsb/", http.FileServer(http.Dir("web"))))
 	http.Handle("/create", http.HandlerFunc(handleUpload))
 	http.Handle("/get", http.HandlerFunc(handleGet))
+	http.Handle("/aliases", http.HandlerFunc(handleAliases))
+	http.Handle("/createAlias", http.HandlerFunc(handleCreateAlias))
+	http.Handle("/delete", http.HandlerFunc(handleDelete))
 
 	// we _must_ listen and serve AFTER declaring our handlers.
 	http.ListenAndServe(":8080", nil)
-
 	fmt.Println("Discord Soundboard is now running.  Press CTRL-C to exit.")
 	// Simple way to keep program running until CTRL-C is pressed.
 	<-make(chan struct{})
@@ -412,11 +415,78 @@ func getCurrentVoiceChannel(user *discordgo.User, guild *discordgo.Guild, sessio
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("web/templates/get.html")
+	t, _ := template.ParseFiles("web/templates/get.html.tmpl")
 	err := t.Execute(w, soundMap)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func handleAliases(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("web/templates/alias.html.tmpl")
+	err := t.Execute(w, soundMap)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func handleCreateAlias(w http.ResponseWriter, r *http.Request) {
+	newAlias := r.FormValue("newAlias")
+	oldCommand := r.FormValue("sound")
+
+	sound, ok := soundMap[oldCommand]
+	if ok {
+		alias := &Sound{
+			Name:    sound.Name,
+			Command: newAlias,
+		}
+		alias.Load()
+		soundMap[newAlias] = alias
+
+		// write to file
+		f, err := os.OpenFile("config/sounds.csv", os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			panic(err)
+		}
+
+		defer f.Close()
+
+		if _, err = f.WriteString("\n" + alias.Name + "," + alias.Command); err != nil {
+			panic(err)
+		}
+	}
+
+}
+
+func handleDelete(w http.ResponseWriter, r *http.Request) {
+	commandToDelete := r.FormValue("delete")
+	sound, ok := soundMap[commandToDelete]
+	if ok {
+		delete(soundMap, commandToDelete)
+		// read file, remove offending string, write back
+		input, err := ioutil.ReadFile("config/sounds.csv")
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		lines := strings.Split(string(input), "\n")
+		var newLines []string
+		offendingString := sound.Name + "," + commandToDelete
+		fmt.Println("Looking for...." + offendingString)
+		for _, line := range lines {
+			fmt.Println("Line is..." + line)
+			if line != offendingString {
+				newLines = append(newLines, line)
+			}
+		}
+
+		output := strings.Join(newLines, "\n")
+		err = ioutil.WriteFile("config/sounds.csv", []byte(output), 0644)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+	w.WriteHeader(200)
 }
 
 func handleUpload(w http.ResponseWriter, r *http.Request) {
