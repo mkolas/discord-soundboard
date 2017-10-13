@@ -1,4 +1,5 @@
 {
 	"Token":"ADD YOUR DISCORD BOT TOKEN HERE!",
-	"Status":"!commands"
+	"Status":"!commands",
+	"Port":"8000"
 }

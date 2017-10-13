@@ -51,6 +51,7 @@ var (
 type Configuration struct {
 	Token  string
 	Status string
+	Port   string
 }
 
 // Play represents an individual use of the !airhorn command
@@ -169,7 +170,7 @@ func main() {
 	http.Handle("/delete", http.HandlerFunc(handleDelete))
 
 	// we _must_ listen and serve AFTER declaring our handlers.
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(configuration.Port, nil)
 	fmt.Println("Discord Soundboard is now running.  Press CTRL-C to exit.")
 	// Simple way to keep program running until CTRL-C is pressed.
 	<-make(chan struct{})
