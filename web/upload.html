@@ -61,8 +61,6 @@
    <div id="upload-content" class="content">
            <div class="four columns">
                <h4>Upload New</h4>
-               <form action="/create"
-                     enctype="multipart/form-data" method="post">
                        <label for="command">Command name (no prefixes!):</label>
                        <input type="text" name="command" id="command" placeholder="no !, please">
                    <p>
@@ -70,9 +68,8 @@
                        <input type="file" id="file" name="file">
                    </p>
                    <div>
-                       <input class="button-primary" type="submit" value="Submit">
+                       <a id="createSound" style="text-align:center" class="button button-primary" onclick="createSound()">Create</a>
                    </div>
-               </form>
            </div>
            <div class="eight columns">
                <h4>Create Alias</h4>

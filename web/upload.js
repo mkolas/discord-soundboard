@@ -106,14 +106,15 @@ function createSound() {
     let request = new XMLHttpRequest();
     request.open('POST', '/create');
     let formData = new FormData();
-    formData.append('file', file);
-    formData.append('command', command);
+    formData.append('file', file.files[0]);
+    formData.append('command', command.value);
     request.send(formData);
     request.onload = function() {
         command.value = "";
         file.value = "";
     }
 }
+
 function deleteSound(element) {
     let id = element.id.substr(0, element.id.indexOf('-'));
     let request = new XMLHttpRequest();
