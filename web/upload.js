@@ -67,6 +67,8 @@ let uploadButton = document.getElementById('upload-button');
 let manageButton = document.getElementById('manage-button');
 let newAlias = document.getElementById('new-alias');
 let aliasList = document.getElementById('alias-list');
+let file = document.getElementById('file');
+let command = document.getElementById('command');
 
 function setUpload() {
     uploadContent.style.display = 'block';
@@ -100,6 +102,18 @@ function getAliases() {
     }
 }
 
+function createSound() {
+    let request = new XMLHttpRequest();
+    request.open('POST', '/create');
+    let formData = new FormData();
+    formData.append('file', file);
+    formData.append('command', command);
+    request.send(formData);
+    request.onload = function() {
+        command.value = "";
+        file.value = "";
+    }
+}
 function deleteSound(element) {
     let id = element.id.substr(0, element.id.indexOf('-'));
     let request = new XMLHttpRequest();
