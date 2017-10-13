@@ -62,7 +62,7 @@ function makeFloaters() {
 let contentHolder = document.getElementById('content-holder');
 let uploadContent = document.getElementById('upload-content');
 let listContent = document.getElementById('list-content');
-let soundList = document.getElementById('soundList');
+let soundList = document.getElementById('sound-list');
 let uploadButton = document.getElementById('upload-button');
 let manageButton = document.getElementById('manage-button');
 let newAlias = document.getElementById('new-alias');

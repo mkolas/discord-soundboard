@@ -23,27 +23,15 @@ import (
 )
 
 var (
-	// discordgo session
-	discord *discordgo.Session
-
 	// Map of Guild id's to *Play channels, used for queuing and rate-limiting guilds
 	queues map[string]chan *Play = make(map[string]chan *Play)
 
-	sounds = []*Sound{}
-
+	sounds   = []*Sound{}
 	soundMap = map[string]*Sound{}
 
-	// Sound encoding settings
-	BITRATE        = 128
 	MAX_QUEUE_SIZE = 128
 
-	// Owner
-	OWNER string
-
-	// Bot token
-	token string
-
-	// Status message
+	token  string
 	status string
 )
 
@@ -64,16 +52,11 @@ type Play struct {
 
 // Sound type cribbed from airhornbot.
 type Sound struct {
-	Name string `csv:"filename"`
-
-	// major difference here is that we want to be able to call each sound explicitly
-	Command string `csv:"command"`
-
-	// Really not sure how important this is. let's defa
-	PartDelay int `csv:"-"`
-
-	// Buffer to store encoded PCM packets
-	buffer [][]byte `csv:"-"`
+	Name      string   `csv:"filename"`
+	Command   string   `csv:"command"`
+	Played    int	   `csv:"played"`
+	PartDelay int      `csv:"-"`
+	buffer    [][]byte `csv:"-"`
 }
 
 func main() {
@@ -109,13 +92,12 @@ func main() {
 
 	reader := csv.NewReader(soundsFile)
 	//Configure reader options Ref http://golang.org/src/pkg/encoding/csv/reader.go?s=#L81
-	reader.Comma = ','         //field delimiter
-	reader.Comment = '#'       //Comment character
-	reader.FieldsPerRecord = 2 //Number of records per record. Set to Negative value for variable
+	reader.Comma = ','
+	reader.Comment = '#'
+	reader.FieldsPerRecord = 2
 	reader.TrimLeadingSpace = true
 
 	for {
-		// read just one record, but we could ReadAll() as well
 		record, err := reader.Read()
 		// end-of-file is fitted into err
 		if err == io.EOF {
@@ -130,6 +112,7 @@ func main() {
 		sound := &Sound{
 			Name:    record[0],
 			Command: record[1],
+			Played: 0,
 		}
 		sounds = append(sounds, sound)
 	}
@@ -148,13 +131,8 @@ func main() {
 		return
 	}
 
-	// Register ready as a callback for the ready events.
 	dg.AddHandler(ready)
-
-	// Register messageCreate as a callback for the messageCreate events.
 	dg.AddHandler(messageCreate)
-
-	// Register guildCreate as a callback for the guildCreate events.
 	dg.AddHandler(guildCreate)
 
 	// Open the websocket and begin listening.
@@ -178,7 +156,6 @@ func main() {
 }
 
 func ready(s *discordgo.Session, event *discordgo.Ready) {
-	// Set the playing status.
 	_ = s.UpdateStatus(0, status) // set status message defined in configuration
 }
 
@@ -198,7 +175,6 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			// we need to have the channel available to send a message, so do this second.
 			if command == "list" || command == "commands" {
 				// special case for list command.
-				// this code actually sucks but using the reflect stdlib means i have to do some bizarre casting
 				keys := make([]string, len(soundMap))
 				i := 0
 				for k := range soundMap {
@@ -216,12 +192,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 							outputString = outputString + keys[keyIndex] + ", "
 							keyIndex++
 						}
-						outputString = outputString[:len(outputString)-2]                       // remove last chars
-						_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+outputString+"```") // short enough, so we're fine.
+						outputString = outputString[:len(outputString)-2]
+						_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+outputString+"```")
 					}
 
 				} else {
-					_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+strings.Join(keys, ", ")+"```") // short enough, so we're fine.
+					_, _ = s.ChannelMessageSend(c.ID, "**Commands**```"+strings.Join(keys, ", ")+"```")
 				}
 				return
 			}
@@ -248,9 +224,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 				command = keys[rand.Intn(len(keys))]
 			}
 
-			i, ok := soundMap[command] // look for command in our soundMap
-			if ok {                    // we found it, so lets queue the sound
-				go enqueuePlay(m.Author, ac, g, i, s)
+			sound, ok := soundMap[command] // look for command in our soundMap
+			if ok {
+				sound.Played++
+				go enqueuePlay(m.Author, ac, g, sound, s)
 				go s.ChannelMessageDelete(m.ChannelID, m.ID) //clean up the command afterwards
 			}
 		}
@@ -520,7 +497,6 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	//    defer dcaOut.Close()
 
 	// convert file to .dca
 	cmd := exec.Command("dca-rs", "-i", "sounds/"+header.Filename, "--raw")
@@ -531,7 +507,6 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writer := bufio.NewWriter(dcaOut)
-	//defer writer.Flush()
 
 	err = cmd.Start()
 	if err != nil {
@@ -545,7 +520,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	writer.Flush()
 	dcaOut.Close()
 
-	// that was obnoxious. now let's get our command, add the sound to the map as well as our config file.
+	// create sound struct, load into map
 	sound := &Sound{
 		Name:    dcaFilename,
 		Command: r.FormValue("command"),
@@ -554,7 +529,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	sound.Load()
 	soundMap[sound.Command] = sound
 	fmt.Println("Loaded filename", sound.Name, "loaded command", sound.Command)
-
+	// write this back into file
 	f, err := os.OpenFile("config/sounds.csv", os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		panic(err)

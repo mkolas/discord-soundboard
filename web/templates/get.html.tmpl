@@ -1,3 +1,3 @@
 {{ range $key, $value := . }}
-<div id="{{$key}}">{{$key}}<a id="{{$key}}-delete" style="text-align:center" onclick="deleteSound(this)" class="button button-delete">DELETE</a></div></br>
+<tr id="{{$key}}"><td>{{$key}}</td><td>{{$value.Name}}</td><td>{{$value.Played}}</td><td><a id="{{$key}}-delete" style="text-align:center" onclick="deleteSound(this)" class="button button-delete">DELETE</a></td></tr>
 {{ end }}
