@@ -16,10 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"encoding/csv"
 	"github.com/bwmarrin/discordgo"
-	"io/ioutil"
+	_ "github.com/mattn/go-sqlite3"
 	"log"
+
+	"database/sql"
 )
 
 var (
@@ -33,6 +34,8 @@ var (
 
 	token  string
 	status string
+
+	db *sql.DB
 )
 
 // Right now, configuration only set to take in a bot token. but we can add in more things in the future.
@@ -54,7 +57,7 @@ type Play struct {
 type Sound struct {
 	Name      string   `csv:"filename"`
 	Command   string   `csv:"command"`
-	Played    int	   `csv:"played"`
+	Played    int      `csv:"played"`
 	PartDelay int      `csv:"-"`
 	buffer    [][]byte `csv:"-"`
 }
@@ -83,36 +86,35 @@ func main() {
 	}
 	fmt.Println("Retrieved token: " + token)
 
-	// lets load up our sounds
-	soundsFile, err := os.OpenFile("config/sounds.csv", os.O_RDWR|os.O_CREATE, os.ModePerm) // should figure out what these os objects are
+	db, err = sql.Open("sqlite3", "config/sounds.db")
 	if err != nil {
-		panic(err)
+		log.Fatal("Unable to create database")
 	}
-	defer soundsFile.Close()
+	createStmt := `
+	create table if not exists sounds(command text, file text, played int);
+	`
+	_, err = db.Exec(createStmt)
+	if err != nil {
+		log.Printf("%q, %s\n", err, createStmt)
+	}
 
-	reader := csv.NewReader(soundsFile)
-	//Configure reader options Ref http://golang.org/src/pkg/encoding/csv/reader.go?s=#L81
-	reader.Comma = ','
-	reader.Comment = '#'
-	reader.FieldsPerRecord = 2
-	reader.TrimLeadingSpace = true
+	defer db.Close()
+	// lets load up our sounds
 
-	for {
-		record, err := reader.Read()
-		// end-of-file is fitted into err
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			fmt.Println("Error:", err)
-			reader.Read()
-			continue
+	rows, err := db.Query("select * from sounds")
+	defer rows.Close()
+	for rows.Next() {
+		var command string
+		var file string
+		var played int
+		err = rows.Scan(&command, &file, &played)
+		if err != nil {
+			log.Fatal(err)
 		}
-		// record is array of strings Ref http://golang.org/src/pkg/encoding/csv/reader.go?s=#L134
-		// Create the play
 		sound := &Sound{
-			Name:    record[0],
-			Command: record[1],
-			Played: 0,
+			Name:    file,
+			Command: command,
+			Played:  played,
 		}
 		sounds = append(sounds, sound)
 	}
@@ -227,6 +229,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			sound, ok := soundMap[command] // look for command in our soundMap
 			if ok {
 				sound.Played++
+				updateStmt, err := db.Prepare("update sounds set played = ? where command = ?")
+				if err != nil {
+					log.Println(err)
+				}
+				updateStmt.Exec(sound.Played, command)
 				go enqueuePlay(m.Author, ac, g, sound, s)
 				go s.ChannelMessageDelete(m.ChannelID, m.ID) //clean up the command afterwards
 			}
@@ -420,49 +427,27 @@ func handleCreateAlias(w http.ResponseWriter, r *http.Request) {
 		}
 		alias.Load()
 		soundMap[newAlias] = alias
-
-		// write to file
-		f, err := os.OpenFile("config/sounds.csv", os.O_APPEND|os.O_WRONLY, 0600)
+		insertStmt, err := db.Prepare("insert into sounds(command, file, played) values(?,?,?)")
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
-
-		defer f.Close()
-
-		if _, err = f.WriteString("\n" + alias.Name + "," + alias.Command); err != nil {
-			panic(err)
-		}
+		insertStmt.Exec(alias.Command, alias.Name, 0)
 	}
 
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {
 	commandToDelete := r.FormValue("delete")
-	sound, ok := soundMap[commandToDelete]
+	_, ok := soundMap[commandToDelete]
 	if ok {
 		delete(soundMap, commandToDelete)
-		// read file, remove offending string, write back
-		input, err := ioutil.ReadFile("config/sounds.csv")
+
+		deleteStmt, err := db.Prepare("delete from sounds where command = ?")
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		lines := strings.Split(string(input), "\n")
-		var newLines []string
-		offendingString := sound.Name + "," + commandToDelete
-		fmt.Println("Looking for...." + offendingString)
-		for _, line := range lines {
-			fmt.Println("Line is..." + line)
-			if line != offendingString {
-				newLines = append(newLines, line)
-			}
-		}
-
-		output := strings.Join(newLines, "\n")
-		err = ioutil.WriteFile("config/sounds.csv", []byte(output), 0644)
-		if err != nil {
-			log.Fatalln(err)
-		}
+		deleteStmt.Exec(commandToDelete)
 	}
 	w.WriteHeader(200)
 }
@@ -529,15 +514,12 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	sound.Load()
 	soundMap[sound.Command] = sound
 	fmt.Println("Loaded filename", sound.Name, "loaded command", sound.Command)
-	// write this back into file
-	f, err := os.OpenFile("config/sounds.csv", os.O_APPEND|os.O_WRONLY, 0600)
+	//  insert into db
+	insertStmt, err := db.Prepare("insert into sounds(command, file, played) values(?,?,?)")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	defer f.Close()
+	insertStmt.Exec(r.FormValue("command"), dcaFilename, 0)
 
-	if _, err = f.WriteString("\n" + dcaFilename + "," + r.FormValue("command")); err != nil {
-		panic(err)
-	}
 }
