@@ -225,6 +225,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 				}
 				command = keys[rand.Intn(len(keys))]
 			}
+			if command == "least" || command == "lowest" {
+				lowest := 1 <<63 -1 // maxint
+				for k := range soundMap {
+					if soundMap[k].Played < lowest {
+						command = soundMap[k].Command
+					}
+				}
+			}
 
 			sound, ok := soundMap[command] // look for command in our soundMap
 			if ok {
