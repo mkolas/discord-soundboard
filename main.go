@@ -148,6 +148,7 @@ func main() {
 	http.Handle("/aliases", http.HandlerFunc(handleAliases))
 	http.Handle("/createAlias", http.HandlerFunc(handleCreateAlias))
 	http.Handle("/delete", http.HandlerFunc(handleDelete))
+	http.Handle("/restart", http.HandlerFunc(handleRestart))
 
 	// we _must_ listen and serve AFTER declaring our handlers.
 	http.ListenAndServe(configuration.Port, nil)
@@ -421,6 +422,19 @@ func handleAliases(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func handleRestart(w http.ResponseWriter, r *http.Request) {
+	// Create a new Discord session using the provided bot token.
+	dg, err := discordgo.New("Bot " + token)
+	if err != nil {
+		fmt.Println("Error creating Discord session: ", err)
+		return
+	}
+
+	dg.AddHandler(ready)
+	dg.AddHandler(messageCreate)
+	dg.AddHandler(guildCreate)
 }
 
 func handleCreateAlias(w http.ResponseWriter, r *http.Request) {
