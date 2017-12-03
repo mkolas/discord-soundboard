@@ -150,7 +150,6 @@ func main() {
 	http.Handle("/aliases", http.HandlerFunc(handleAliases))
 	http.Handle("/createAlias", http.HandlerFunc(handleCreateAlias))
 	http.Handle("/delete", http.HandlerFunc(handleDelete))
-	http.Handle("/restart", http.HandlerFunc(handleRestart))
 
 	// we _must_ listen and serve AFTER declaring our handlers.
 	http.ListenAndServe(configuration.Port, nil)
@@ -356,10 +355,12 @@ func playSound(play *Play, vc *discordgo.VoiceConnection, session *discordgo.Ses
 		vc, err = session.ChannelVoiceJoin(play.GuildID, play.ChannelID, false, false)
 		// vc.Receive = false
 		if err != nil {
-			fmt.Println("Failed to retrieve voice connection. Close and retry.")
+			fmt.Println("Failed to retrieve voice connection. Panicking..")
+			panic(err)
 			// this occurs when the voice connection fails to close. let's close manually?
-			vc.Close() // close manually
-			vc, _ = session.ChannelVoiceJoin(play.GuildID, play.ChannelID, false, false)
+			//vc.Disconnect()
+			//vc.Close() // close manually
+			//vc, _ = session.ChannelVoiceJoin(play.GuildID, play.ChannelID, false, false)
 		}
 	}
 
@@ -421,25 +422,6 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 func handleAliases(w http.ResponseWriter, r *http.Request) {
 	t, _ := template.ParseFiles("web/templates/alias.html.tmpl")
 	err := t.Execute(w, soundMap)
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func handleRestart(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Attempting to restart soundboard...")
-	var err error
-
-	dg.Close()
-	// Create a new Discord session using the provided bot token.
-	dg, err = discordgo.New("Bot " + token)
-	if err != nil {
-		fmt.Println(err)
-	}
-	dg.AddHandler(ready)
-	dg.AddHandler(messageCreate)
-	dg.AddHandler(guildCreate)
-	err = dg.Open()
 	if err != nil {
 		fmt.Println(err)
 	}
