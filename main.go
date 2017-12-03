@@ -36,6 +36,8 @@ var (
 	status string
 
 	db *sql.DB
+
+	dg *discordgo.Session
 )
 
 // Right now, configuration only set to take in a bot token. but we can add in more things in the future.
@@ -127,7 +129,7 @@ func main() {
 	}
 
 	// Create a new Discord session using the provided bot token.
-	dg, err := discordgo.New("Bot " + token)
+	dg, err = discordgo.New("Bot " + token)
 	if err != nil {
 		fmt.Println("Error creating Discord session: ", err)
 		return
@@ -425,16 +427,22 @@ func handleAliases(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRestart(w http.ResponseWriter, r *http.Request) {
-	// Create a new Discord session using the provided bot token.
-	dg, err := discordgo.New("Bot " + token)
-	if err != nil {
-		fmt.Println("Error creating Discord session: ", err)
-		return
-	}
+	fmt.Println("Attempting to restart soundboard...")
+	var err error
 
+	dg.Close()
+	// Create a new Discord session using the provided bot token.
+	dg, err = discordgo.New("Bot " + token)
+	if err != nil {
+		fmt.Println(err)
+	}
 	dg.AddHandler(ready)
 	dg.AddHandler(messageCreate)
 	dg.AddHandler(guildCreate)
+	err = dg.Open()
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func handleCreateAlias(w http.ResponseWriter, r *http.Request) {
